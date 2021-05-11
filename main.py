@@ -3,8 +3,8 @@ from harmonize import *
 def get_args():
     parser = argparse.ArgumentParser()
     # path relative to the directory ./
-    parser.add_argument("--src_img_path", default="ConSinGAN/Images/Harmonization/scream.jpg")
-    parser.add_argument("--naive_img_path", default="ConSinGAN/Images/Harmonization/scream_naive.jpg")
+    parser.add_argument("--src_img_path", default="Con_Sin_GAN/Images/Harmonization/scream.jpg")
+    parser.add_argument("--naive_img_path", default="Con_Sin_GAN/Images/Harmonization/scream_naive.jpg")
     parser.add_argument("--output_dir", default="Images/output")
     parser.add_argument("--min_size", default=120, type=int)
     parser.add_argument("--gpu", default=1, type=int)
