@@ -38,6 +38,8 @@ def harmoize(args):
 
 def get_img(args, model_dir, name):
     img_dir = os.path.join(model_dir, "Evaluation/harmonized_w_mask.jpg")
+    if not os.path.exists(img_dir):
+        img_dir = os.path.join(model_dir, "Evaluation/harmonized_wo_mask.jpg")
     output_img_dir = os.path.join(args.output_dir, name + ".jpg")
     cp_command = "cd Con_Sin_GAN/\n cp " + img_dir + " " + output_img_dir
     os.system(cp_command)

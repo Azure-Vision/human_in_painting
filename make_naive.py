@@ -20,8 +20,9 @@ def clear_border(image):
 def get_naive(human_img, background_img):
     # TODO: @szm
     y1, y2 = background_img.shape[0] - human_img.shape[0], background_img.shape[0]
-    x1, x2 = 0, human_img.shape[1]
-    not_trans_indices = human_img[:, :, 3] != 0
+    x1, x2 = int(3/4 * background_img.shape[1] )- human_img.shape[1], int(3/4 * background_img.shape[1])
+    print(human_img[:, :, 3])
+    not_trans_indices = human_img[:, :, 3] > 200
     background_img[y1:y2, x1:x2, :][not_trans_indices] = human_img[:, :, :3][not_trans_indices]
     # print(background_img)
     return background_img
