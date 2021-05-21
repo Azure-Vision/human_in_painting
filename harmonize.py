@@ -27,6 +27,13 @@ def train_model(args):
     command = "cd Con_Sin_GAN/\n python main_train.py --gpu " + str(args.gpu) + " --train_mode harmonization --train_stages 3 --min_size " + str(args.min_size) + " --lrelu_alpha 0.3 --niter 1000 --batch_norm --input_name " + args.src_img_path
     print(command)
     os.system(command)
+    if args.finetune:
+        src_img_name = args.src_img_path.split("/")[-1][:-4]
+        model_dir = "TrainedModels/" + src_img_name + "/"
+        latest_dir = sorted(os.listdir("Con_Sin_GAN/" + model_dir))[-1]
+        model_dir += latest_dir
+        command = "cd Con_Sin_GAN/\n python main_train.py --gpu " + str(args.gpu) + " --train_mode harmonization --input_name " + args.src_img_path + " --naive_img " + args.naive_img_path + " --fine_tune --model_dir " + model_dir
+        os.system(command)
 def harmoize(args):
     write_html(args, "Harmonizing...", "Harmonizing " + args.naive_img_path + " using trained model.")
     src_img_name = args.src_img_path.split("/")[-1][:-4]

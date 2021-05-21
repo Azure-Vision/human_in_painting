@@ -8,7 +8,8 @@ def get_args():
     parser.add_argument("--naive_img_path", default=None) # "Con_Sin_GAN/Images/Harmonization/scream_naive.jpg"
     parser.add_argument("--output_dir", default="Images/output")
     parser.add_argument("--min_size", default=120, type=int)
-    parser.add_argument("--gpu", default=1, type=int)
+    parser.add_argument("--gpu", default=0, type=int)
+    parser.add_argument("--finetune", default=True, type=bool)
     args = parser.parse_args()
     return args
 
