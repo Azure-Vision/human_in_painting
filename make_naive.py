@@ -23,6 +23,7 @@ def get_naive(human_img, background_img):
     x2 = background_img.shape[1]
     x1 = x2 - human_img.shape[1]
     not_trans_indices = human_img[:, :, 3] > 250
+    # print(y1,y2, background_img.shape, human_img.shape, not_trans_indices.shape)
     background_img[y1:y2, x1:x2, :][not_trans_indices] = human_img[:, :, :3][not_trans_indices]
     # print(background_img)
     return background_img

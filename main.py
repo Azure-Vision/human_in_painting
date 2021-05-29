@@ -9,12 +9,14 @@ def get_args():
     parser.add_argument("--output_dir", default="Images/output")
     parser.add_argument("--min_size", default=120, type=int)
     parser.add_argument("--gpu", default=0, type=int)
-    parser.add_argument("--finetune", default=True, type=bool)
+    parser.add_argument("--no-finetune", default=False, action="store_true")
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
     args = get_args()
+    args.input_name = args.src_img_path
+    args.train_mode = "harmonization"
     if not args.naive_img_path:
         human_segmentation = segment_human(args.human_img_path)
         args.naive_img_path = get_naive_image(human_segmentation, args.src_img_path)
