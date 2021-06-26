@@ -29,26 +29,29 @@ def norm(x):
 
 
 def convert_image_np(inp):
-    if inp.shape[1]==3:
+    if inp.shape[1] == 3:
         inp = denorm(inp)
-        inp = move_to_cpu(inp[-1,:,:,:])
-        inp = inp.numpy().transpose((1,2,0))
+        inp = move_to_cpu(inp[-1, :, :, :])
+        inp = inp.numpy().transpose((1, 2, 0))
     else:
         inp = denorm(inp)
-        inp = move_to_cpu(inp[-1,-1,:,:])
-        inp = inp.numpy().transpose((0,1))
+        inp = move_to_cpu(inp[-1, -1, :, :])
+        inp = inp.numpy().transpose((0, 1))
 
-    inp = np.clip(inp,0,1)
+    inp = np.clip(inp, 0, 1)
     return inp
 
 
-def generate_noise(size,num_samp=1,device='cuda',type='gaussian', scale=1):
+def generate_noise(size, num_samp=1, device='cuda', type='gaussian', scale=1):
     if type == 'gaussian':
-        noise = torch.randn(num_samp, size[0], round(size[1]/scale), round(size[2]/scale), device=device)
-        noise = upsampling(noise,size[1], size[2])
-    elif type =='gaussian_mixture':
-        noise1 = torch.randn(num_samp, size[0], size[1], size[2], device=device)+5
-        noise2 = torch.randn(num_samp, size[0], size[1], size[2], device=device)
+        noise = torch.randn(num_samp, size[0], round(
+            size[1]/scale), round(size[2]/scale), device=device)
+        noise = upsampling(noise, size[1], size[2])
+    elif type == 'gaussian_mixture':
+        noise1 = torch.randn(
+            num_samp, size[0], size[1], size[2], device=device)+5
+        noise2 = torch.randn(
+            num_samp, size[0], size[1], size[2], device=device)
         noise = noise1+noise2
     elif type == 'uniform':
         noise = torch.randn(num_samp, size[0], size[1], size[2], device=device)
@@ -57,8 +60,9 @@ def generate_noise(size,num_samp=1,device='cuda',type='gaussian', scale=1):
     return noise
 
 
-def upsampling(im,sx,sy):
-    m = nn.Upsample(size=[round(sx),round(sy)],mode='bilinear',align_corners=True)
+def upsampling(im, sx, sy):
+    m = nn.Upsample(size=[round(sx), round(sy)],
+                    mode='bilinear', align_corners=True)
     return m(im)
 
 
@@ -82,27 +86,30 @@ def sample_random_noise(depth, reals_shapes, opt):
     for d in range(depth + 1):
         if d == 0:
             noise.append(generate_noise([opt.nc_im, reals_shapes[d][2], reals_shapes[d][3]],
-                                         device=opt.device).detach())
+                                        device=opt.device).detach())
         else:
             if opt.train_mode == "generation" or opt.train_mode == "animation":
                 noise.append(generate_noise([opt.nfc, reals_shapes[d][2] + opt.num_layer * 2,
                                              reals_shapes[d][3] + opt.num_layer * 2],
-                                             device=opt.device).detach())
+                                            device=opt.device).detach())
             else:
                 noise.append(generate_noise([opt.nfc, reals_shapes[d][2], reals_shapes[d][3]],
-                                             device=opt.device).detach())
+                                            device=opt.device).detach())
 
     return noise
 
+
 def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
     MSGGan = False
-    if  MSGGan:
+    if MSGGan:
         alpha = torch.rand(1, 1)
         alpha = alpha.to(device)  # cuda() #gpu) #if use_cuda else alpha
 
-        interpolates = [alpha * rd + ((1 - alpha) * fd) for rd, fd in zip(real_data, fake_data)]
+        interpolates = [alpha * rd + ((1 - alpha) * fd)
+                        for rd, fd in zip(real_data, fake_data)]
         interpolates = [i.to(device) for i in interpolates]
-        interpolates = [torch.autograd.Variable(i, requires_grad=True) for i in interpolates]
+        interpolates = [torch.autograd.Variable(
+            i, requires_grad=True) for i in interpolates]
 
         disc_interpolates = netD(interpolates)
     else:
@@ -111,15 +118,17 @@ def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
         alpha = alpha.to(device)  # cuda() #gpu) #if use_cuda else alpha
 
         interpolates = alpha * real_data + ((1 - alpha) * fake_data)
-        interpolates = interpolates.to(device)#.cuda()
-        interpolates = torch.autograd.Variable(interpolates, requires_grad=True)
+        interpolates = interpolates.to(device)  # .cuda()
+        interpolates = torch.autograd.Variable(
+            interpolates, requires_grad=True)
 
         disc_interpolates = netD(interpolates)
 
     gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
-                              grad_outputs=torch.ones(disc_interpolates.size()).to(device),#.cuda(), #if use_cuda else torch.ones(
-                                  #disc_interpolates.size()),
-                              create_graph=True, retain_graph=True, only_inputs=True)[0]
+                                    grad_outputs=torch.ones(disc_interpolates.size()).to(
+                                        device),  # .cuda(), #if use_cuda else torch.ones(
+                                    # disc_interpolates.size()),
+                                    create_graph=True, retain_graph=True, only_inputs=True)[0]
     #LAMBDA = 1
     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * LAMBDA
     return gradient_penalty
@@ -127,37 +136,38 @@ def calc_gradient_penalty(netD, real_data, fake_data, LAMBDA, device):
 
 def read_image(opt):
     x = img.imread('%s' % (opt.input_name))
-    x = np2torch(x,opt)
-    x = x[:,0:3,:,:]
+    x = np2torch(x, opt)
+    x = x[:, 0:3, :, :]
     return x
 
 
 def read_image_dir(dir, opt):
     x = img.imread(dir)
-    x = np2torch(x,opt)
-    x = x[:,0:3,:,:]
+    x = np2torch(x, opt)
+    x = x[:, 0:3, :, :]
     return x
 
 
 def np2torch(x, opt):
     if opt.nc_im == 3:
-        x = x[:,:,:,None]
+        x = x[:, :, :, None]
         x = x.transpose((3, 2, 0, 1))/255
     else:
         x = color.rgb2gray(x)
-        x = x[:,:,None,None]
+        x = x[:, :, None, None]
         x = x.transpose(3, 2, 0, 1)
     x = torch.from_numpy(x)
     if not(opt.not_cuda):
         x = move_to_gpu(x)
-    x = x.type(torch.cuda.FloatTensor) if not(opt.not_cuda) else x.type(torch.FloatTensor)
+    x = x.type(torch.cuda.FloatTensor) if not(
+        opt.not_cuda) else x.type(torch.FloatTensor)
     x = norm(x)
     return x
 
 
 def torch2uint8(x):
-    x = x[0,:,:,:]
-    x = x.permute((1,2,0))
+    x = x[0, :, :, :]
+    x = x.permute((1, 2, 0))
     x = 255*denorm(x)
     x = x.cpu().numpy()
     x = x.astype(np.uint8)
@@ -170,22 +180,24 @@ def read_image2np(opt):
     return x
 
 
-def save_networks(netG, netDs ,z, opt):
+def save_networks(netG, netDs, z, opt):
     torch.save(netG.state_dict(), '%s/netG.pth' % (opt.outf))
     if isinstance(netDs, list):
         for i, netD in enumerate(netDs):
-            torch.save(netD.state_dict(), '%s/netD_%s.pth' % (opt.outf, str(i)))
+            torch.save(netD.state_dict(), '%s/netD_%s.pth' %
+                       (opt.outf, str(i)))
     else:
         torch.save(netDs.state_dict(), '%s/netD.pth' % (opt.outf))
     torch.save(z, '%s/z_opt.pth' % (opt.outf))
 
 
 def adjust_scales2image(real_, opt):
-    opt.scale1 = min(opt.max_size / max([real_.shape[2], real_.shape[3]]),1)
+    opt.scale1 = min(opt.max_size / max([real_.shape[2], real_.shape[3]]), 1)
     real = imresize(real_, opt.scale1, opt)
 
     opt.stop_scale = opt.train_stages - 1
-    opt.scale_factor = math.pow(opt.min_size / (min(real.shape[2], real.shape[3])), 1 / opt.stop_scale)
+    opt.scale_factor = math.pow(
+        opt.min_size / (min(real.shape[2], real.shape[3])), 1 / opt.stop_scale)
     return real
 
 
@@ -200,8 +212,9 @@ def create_reals_pyramid(real, opt):
     # use new rescaling method for all other tasks
     else:
         for i in range(opt.stop_scale):
-            scale = math.pow(opt.scale_factor,((opt.stop_scale-1)/math.log(opt.stop_scale))*math.log(opt.stop_scale-i)+1)
-            curr_real = imresize(real,scale,opt)
+            scale = math.pow(opt.scale_factor, ((
+                opt.stop_scale-1)/math.log(opt.stop_scale))*math.log(opt.stop_scale-i)+1)
+            curr_real = imresize(real, scale, opt)
             reals.append(curr_real)
     reals.append(real)
     return reals
@@ -211,14 +224,18 @@ def load_trained_model(opt):
     dir = generate_dir2save(opt)
 
     if os.path.exists(dir):
-        Gs = torch.load('%s/Gs.pth' % dir, map_location="cuda:{}".format(torch.cuda.current_device()))
-        Zs = torch.load('%s/Zs.pth' % dir, map_location="cuda:{}".format(torch.cuda.current_device()))
-        reals = torch.load('%s/reals.pth' % dir, map_location="cuda:{}".format(torch.cuda.current_device()))
-        NoiseAmp = torch.load('%s/NoiseAmp.pth' % dir, map_location="cuda:{}".format(torch.cuda.current_device()))
+        Gs = torch.load(
+            '%s/Gs.pth' % dir, map_location="cuda:{}".format(torch.cuda.current_device()))
+        Zs = torch.load(
+            '%s/Zs.pth' % dir, map_location="cuda:{}".format(torch.cuda.current_device()))
+        reals = torch.load(
+            '%s/reals.pth' % dir, map_location="cuda:{}".format(torch.cuda.current_device()))
+        NoiseAmp = torch.load(
+            '%s/NoiseAmp.pth' % dir, map_location="cuda:{}".format(torch.cuda.current_device()))
     else:
         print('no trained model exists: {}'.format(dir))
 
-    return Gs,Zs,reals,NoiseAmp
+    return Gs, Zs, reals, NoiseAmp
 
 
 def generate_dir2save(opt):
@@ -242,9 +259,11 @@ def generate_dir2save(opt):
 
 def post_config(opt):
     # init fixed parameters
-    opt.device = torch.device("cpu" if opt.not_cuda else "cuda:{}".format(opt.gpu))
+    opt.device = torch.device(
+        "cpu" if opt.not_cuda else "cuda:{}".format(opt.gpu))
     opt.noise_amp_init = opt.noise_amp
-    opt.timestamp = datetime.datetime.now(dateutil.tz.tzlocal()).strftime('%Y_%m_%d_%H_%M_%S')
+    opt.timestamp = datetime.datetime.now(
+        dateutil.tz.tzlocal()).strftime('%Y_%m_%d_%H_%M_%S')
 
     if opt.manualSeed is None:
         opt.manualSeed = random.randint(1, 10000)
@@ -279,18 +298,18 @@ def load_config(opt):
     return opt
 
 
-def dilate_mask(mask,opt):
+def dilate_mask(mask, opt):
     if opt.train_mode == "harmonization":
         element = morphology.disk(radius=7)
     if opt.train_mode == "editing":
         element = morphology.disk(radius=20)
     mask = torch2uint8(mask)
-    mask = mask[:,:,0]
-    mask = morphology.binary_dilation(mask,selem=element)
+    mask = mask[:, :, 0]
+    mask = morphology.binary_dilation(mask, selem=element)
     mask = filters.gaussian(mask, sigma=5)
     nc_im = opt.nc_im
     opt.nc_im = 1
-    mask = np2torch(mask,opt)
+    mask = np2torch(mask, opt)
     opt.nc_im = nc_im
     mask = mask.expand(1, 3, mask.shape[2], mask.shape[3])
     mask = (mask-mask.min())/(mask.max()-mask.min())
@@ -330,7 +349,8 @@ def shuffle_grid(image, max_tiles=5):
             w = img_w - x
         if y + h >= img_h:
             h = img_h - y
-        x_t, y_t = random.randint(x_translation_min, x_translation_max), random.randint(y_translation_min, y_translation_max)
+        x_t, y_t = random.randint(x_translation_min, x_translation_max), random.randint(
+            y_translation_min, y_translation_max)
         if random.random() < 0.5:
             x_t, y_t = -x_t, -y_t
             if x + x_t < 0:
@@ -371,7 +391,8 @@ class Augment():
         return Compose([
             OneOf([
                 OneOf([
-                    MultiplicativeNoise(multiplier=[0.5, 1.5], elementwise=True, per_channel=True, p=0.2),
+                    MultiplicativeNoise(
+                        multiplier=[0.5, 1.5], elementwise=True, per_channel=True, p=0.2),
                     IAAAdditiveGaussianNoise(),
                     GaussNoise()]),
                 OneOf([
@@ -404,16 +425,22 @@ def generate_gif(dir2save, netG, fixed_noise, reals, noise_amp, opt, alpha=0.1, 
     all_images = []
 
     with torch.no_grad():
-        noise_random = sample_random_noise(len(fixed_noise) - 1, reals_shapes, opt)
-        z_prev1 = [0.99 * fixed_noise[i] + 0.01 * noise_random[i] for i in range(len(fixed_noise))]
+        noise_random = sample_random_noise(
+            len(fixed_noise) - 1, reals_shapes, opt)
+        z_prev1 = [0.99 * fixed_noise[i] + 0.01 * noise_random[i]
+                   for i in range(len(fixed_noise))]
         z_prev2 = fixed_noise
         for _ in range(num_images):
-            noise_random = sample_random_noise(len(fixed_noise)-1, reals_shapes, opt)
-            diff_curr = [beta*(z_prev1[i]-z_prev2[i])+(1-beta)*noise_random[i] for i in range(len(fixed_noise))]
-            z_curr = [alpha * fixed_noise[i] + (1 - alpha) * (z_prev1[i] + diff_curr[i]) for i in range(len(fixed_noise))]
+            noise_random = sample_random_noise(
+                len(fixed_noise)-1, reals_shapes, opt)
+            diff_curr = [beta*(z_prev1[i]-z_prev2[i])+(1-beta)
+                         * noise_random[i] for i in range(len(fixed_noise))]
+            z_curr = [alpha * fixed_noise[i] + (1 - alpha) * (
+                z_prev1[i] + diff_curr[i]) for i in range(len(fixed_noise))]
 
             if start_scale > 0:
-                z_curr = [fixed_noise[i] for i in range(start_scale)] + [z_curr[i] for i in range(start_scale, len(fixed_noise))]
+                z_curr = [fixed_noise[i] for i in range(
+                    start_scale)] + [z_curr[i] for i in range(start_scale, len(fixed_noise))]
 
             z_prev2 = z_prev1
             z_prev1 = z_curr
@@ -421,4 +448,5 @@ def generate_gif(dir2save, netG, fixed_noise, reals, noise_amp, opt, alpha=0.1, 
             sample = netG(z_curr, reals_shapes, noise_amp)
             sample = denorm_for_gif(sample)
             all_images.append(sample)
-    imageio.mimsave('{}/start_scale={}_alpha={}_beta={}.gif'.format(dir2save, start_scale, alpha, beta), all_images, fps=fps)
+    imageio.mimsave('{}/start_scale={}_alpha={}_beta={}.gif'.format(dir2save,
+                    start_scale, alpha, beta), all_images, fps=fps)
