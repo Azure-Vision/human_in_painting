@@ -41,6 +41,7 @@ def main(opt):
         opt = functions.load_config(opt)
 
         opt.gpu = _gpu
+        print(opt.gpu)
         opt.model_dir = _model_dir
         opt.start_scale = opt.train_stages - 1
         opt.timestamp = _timestamp

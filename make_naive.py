@@ -1,5 +1,32 @@
 from baiduAPI import *
+import streamlit as st
 import cv2
+from auto_localization import auto_local
+
+
+def rotate_bound(image, angle):
+    # grab the dimensions of the image and then determine the
+    # center
+    (h, w) = image.shape[:2]
+    (cX, cY) = (w // 2, h // 2)
+
+    # grab the rotation matrix (applying the negative of the
+    # angle to rotate clockwise), then grab the sine and cosine
+    # (i.e., the rotation components of the matrix)
+    M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
+    cos = np.abs(M[0, 0])
+    sin = np.abs(M[0, 1])
+
+    # compute the new bounding dimensions of the image
+    nW = int((h * sin) + (w * cos))
+    nH = int((h * cos) + (w * sin))
+
+    # adjust the rotation matrix to take into account translation
+    M[0, 2] += (nW / 2) - cX
+    M[1, 2] += (nH / 2) - cY
+
+    # perform the actual rotation and return the image
+    return cv2.warpAffine(image, M, (nW, nH))
 
 
 def segment_human(human_img_path):
@@ -25,23 +52,34 @@ def clear_border(image):
     return image[top:bottom, left:right], top, bottom, left, right
 
 
-def get_coordinate(y_range, x_range):
+def get_coordinate(human_img, background_img):
     # 接受传入的x，y坐标，y:[0, y_range], x: [0, x_range]
-    y = int(y_range/2)
-    x = int(x_range/2)
-    return y, x
+    # y=0即人像底部贴着背景顶部，y=y_range即人像顶部贴着背景底部
+    # x=0即人像右部贴着背景左部，x=x_range即人像左部贴着背景右部
+    bottom_local = st.sidebar.checkbox(
+        "Locality search at the bottom of painting image", True)
+    best_y, best_x, best_scale = auto_local(
+        background_img, human_img, False, bottom_local)
+    y_range = len(background_img) + int(best_scale * len(human_img))
+    x_range = len(background_img[0]) + int(best_scale * len(human_img[0]))
+    x = st.sidebar.slider("x coordinate -> right", min_value=0,
+                          max_value=x_range, value=best_x)
+    y = st.sidebar.slider("y coordinate -> down", min_value=0,
+                          max_value=y_range, value=best_y)
+    r = st.sidebar.slider("scale ratio", min_value=0.01,
+                          max_value=2.0, value=best_scale, step=0.01)
+    return y, x, r
 
 
-def get_ratio():
-    # 接受传入的缩放比例
-    return 0.5
+def get_angle():
+    angle = st.sidebar.slider('angle -> clockwise', 0, 359, 0, 1)
+    return angle
 
 
 def get_naive(human_img, background_img, y, x):
 
     human_h, human_w = len(human_img), len(human_img[0])
     h, w = len(background_img), len(background_img[0])
-    # print(x,  w, human_w)
     if y < human_h:
         y1 = 0
         y2 = min(y, h)
@@ -62,7 +100,7 @@ def get_naive(human_img, background_img, y, x):
     elif x > w:
         x1 = max(x - human_w, 0)
         x2 = w
-        human_img = human_img[:, h + human_w - x - (x2-x1):w + human_w - x, :]
+        human_img = human_img[:, w + human_w - x - (x2-x1):w + human_w - x, :]
     else:
         x1 = max(x - human_w, 0)
         x2 = x
@@ -72,7 +110,7 @@ def get_naive(human_img, background_img, y, x):
     # print(y1, y2, x1, x2, background_img.shape,
     #   human_img.shape, not_trans_indices.shape)
     background_img[y1:y2, x1:x2,
-                   :][not_trans_indices] = human_img[:, :, :3][not_trans_indices]
+                   :3][not_trans_indices] = human_img[:, :, :3][not_trans_indices]
     return background_img
 
 
@@ -86,18 +124,19 @@ def get_naive_and_mask(human_img_path, mask_img_path,  background_img_path):
     empty_background = np.zeros_like(background_img)
 
     human_img, top, bottom, left, right = clear_border(human_img)
+    cv2.imwrite("Images/tmp/cleaned_human.jpg", human_img)
     mask_img = mask_img[top:bottom, left:right]
     h, w = len(background_img), len(background_img[0])
 
-    size_ratio = get_ratio()
-    human_img = cv2.resize(human_img, (0, 0), fx=size_ratio,
-                           fy=size_ratio, interpolation=cv2.INTER_CUBIC)
-    mask_img = cv2.resize(mask_img, (0, 0), fx=size_ratio,
-                          fy=size_ratio, interpolation=cv2.INTER_CUBIC)
-    human_h, human_w = len(human_img), len(human_img[0])
-
     # 接口：接受传入的x，y坐标，y:[0, h + human_h], x: [0, w + human_w]
-    y, x = get_coordinate(y_range=h + human_h, x_range=w + human_w)
+    y, x, size_ratio = get_coordinate(
+        human_img=human_img, background_img=background_img)
+    angle = get_angle()
+    human_img = rotate_bound(cv2.resize(
+        human_img.copy(), (0, 0), fx=size_ratio, fy=size_ratio), angle)
+    mask_img = rotate_bound(cv2.resize(
+        mask_img.copy(), (0, 0), fx=size_ratio, fy=size_ratio), angle)
+    human_h, human_w = len(human_img), len(human_img[0])
 
     naive_img = get_naive(human_img, background_img, y, x)
     naive_mask_img = get_naive(mask_img, empty_background, y, x)
@@ -108,5 +147,8 @@ def get_naive_and_mask(human_img_path, mask_img_path,  background_img_path):
         human_img_path)[:-4] + "_" + os.path.basename(background_img_path)[:-4] + "_mask.jpg"
     cv2.imwrite(naive_img_path, naive_img)
     cv2.imwrite(naive_mask_img_path, naive_mask_img)
+    st.image(naive_img_path, "composite image", 300)
+    # st.image(naive_mask_img_path, "composite image mask", 300)
+
     # print(naive_img_path)
     return naive_img_path

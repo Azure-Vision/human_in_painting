@@ -7,7 +7,7 @@ from torchvision.utils import make_grid
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-
+import streamlit as st
 from Con_Sin_GAN.ConSinGAN.imresize import imresize, imresize_to_shape
 import Con_Sin_GAN.ConSinGAN.functions as functions
 import Con_Sin_GAN.ConSinGAN.models as models
@@ -19,12 +19,15 @@ def train(opt):
     print("\t number of concurrently trained stages: {}".format(opt.train_depth))
     print("\t learning rate scaling: {}".format(opt.lr_scale))
     print("\t non-linearity: {}".format(opt.activation))
-
+    # print(opt.gpu)
+    _gpu = opt.gpu
     real = functions.read_image(opt)
     real = functions.adjust_scales2image(real, opt)
     reals = functions.create_reals_pyramid(real, opt)
     print("Training on image pyramid: {}".format([r.shape for r in reals]))
     print("")
+    opt.gpu = _gpu
+    opt.device = _gpu
 
     if opt.naive_img != "":
         naive_img = functions.read_image_dir(opt.naive_img, opt)
@@ -49,11 +52,12 @@ def train(opt):
         for _ in range(opt.train_stages-1):
             generator.init_next_stage()
         generator.load_state_dict(torch.load('{}/{}/netG.pth'.format(opt.model_dir, opt.train_stages-1),
-                                             map_location="cuda:{}".format(torch.cuda.current_device())))
+                                             map_location="cuda:{}".format(opt.gpu)))
 
     fixed_noise = []
     noise_amp = []
-
+    st.write("Training ...")
+    bar = st.progress(0)
     for scale_num in range(opt.start_scale, opt.train_stages):
         opt.out_ = functions.generate_dir2save(opt)
         opt.outf = '%s/%d' % (opt.out_, scale_num)
@@ -76,7 +80,7 @@ def train(opt):
 
         writer = SummaryWriter(log_dir=opt.outf)
         fixed_noise, noise_amp, generator, d_curr = train_single_scale(
-            d_curr, generator, reals, img_to_augment, naive_img, naive_img_large, fixed_noise, noise_amp, opt, scale_num, opt.start_scale, opt.train_stages, writer)
+            d_curr, generator, reals, img_to_augment, naive_img, naive_img_large, fixed_noise, noise_amp, opt, scale_num, opt.start_scale, opt.train_stages, writer, bar)
 
         torch.save(fixed_noise, '%s/fixed_noise.pth' % (opt.out_))
         torch.save(generator, '%s/G.pth' % (opt.out_))
@@ -88,7 +92,7 @@ def train(opt):
 
 
 def train_single_scale(netD, netG, reals, img_to_augment, naive_img, naive_img_large,
-                       fixed_noise, noise_amp, opt, depth, begin_depth, total_depth, writer):
+                       fixed_noise, noise_amp, opt, depth, begin_depth, total_depth, writer, bar):
     reals_shapes = [real.shape for real in reals]
     real = reals[depth]
     aug = functions.Augment()
@@ -175,9 +179,9 @@ def train_single_scale(netD, netG, reals, img_to_augment, naive_img, naive_img_l
         # _iter.set_description('stage [{}/{}]:'.format(depth, opt.stop_scale))
 
         # NOTE: 是training & finetuning的进度条！
-        progress = 100 * (iter_i/total_iter/(total_depth - - begin_depth) +
-                          (depth - begin_depth)/(total_depth - - begin_depth))
-        print(progress)
+        progress = (iter_i/total_iter/(total_depth - begin_depth) +
+                    (depth - begin_depth)/(total_depth - begin_depth))
+        bar.progress(progress)
         ############################
         # (0) sample augmented training image
         ###########################

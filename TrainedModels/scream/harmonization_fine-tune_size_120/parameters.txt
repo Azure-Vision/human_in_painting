@@ -6,7 +6,7 @@ batch_norm	-	True
 beta1	-	0.5
 fine_tune	-	True
 gamma	-	0.1
-gpu	-	3
+gpu	-	0
 input_name	-	Images/default_paintings/scream.jpg
 ker_size	-	3
 lambda_grad	-	0.1
@@ -18,7 +18,7 @@ manualSeed	-	4374
 max_size	-	250
 min_size	-	120
 model_dir	-	TrainedModels/scream/harmonization_size_120
-naive_img	-	Images/tmp/naive_human_man1_scream.jpg
+naive_img	-	Images/tmp/naive_human_woman1_scream.jpg
 nc_im	-	3
 nfc	-	64
 niter	-	2000
@@ -32,4 +32,4 @@ train_mode	-	harmonization
 train_stages	-	3
 device	-	cuda:3
 noise_amp_init	-	0.1
-timestamp	-	2021_06_26_13_20_27
+timestamp	-	2021_06_27_17_14_25

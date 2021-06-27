@@ -7,6 +7,7 @@ import glob
 import time
 import random
 import torch
+import streamlit as st
 
 from Con_Sin_GAN.ConSinGAN.config import get_arguments
 import Con_Sin_GAN.ConSinGAN.functions as functions
@@ -104,7 +105,7 @@ def main(opt):
                  osp.join(dir2save, "ConSinGAN"))
 
         # train model
-        print("Training model ({})".format(dir2save))
+        st.write("Training model...")
         start = time.time()
         train(opt)
         end = time.time()

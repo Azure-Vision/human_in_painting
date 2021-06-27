@@ -58,23 +58,22 @@ def main(opt):
     opt.gpu = _gpu
     opt.naive_img = _naive_img
     opt.model_dir = __model_dir
+    opt.not_cuda = True
 
-    if torch.cuda.is_available():
-        torch.cuda.set_device(opt.gpu)
-        opt.device = "cuda:{}".format(opt.gpu)
+    opt.device = "cpu"
 
     dir2save = os.path.join(opt.model_dir, "Evaluation")
     make_dir(dir2save)
 
     print("Loading models...")
     netG = torch.load('%s/G.pth' % opt.model_dir,
-                      map_location="cuda:{}".format(torch.cuda.current_device()))
+                      map_location=opt.device)
     fixed_noise = torch.load('%s/fixed_noise.pth' % opt.model_dir,
-                             map_location="cuda:{}".format(torch.cuda.current_device()))
+                             map_location=opt.device)
     reals = torch.load('%s/reals.pth' % opt.model_dir,
-                       map_location="cuda:{}".format(torch.cuda.current_device()))
+                       map_location=opt.device)
     noise_amp = torch.load('%s/noise_amp.pth' % opt.model_dir,
-                           map_location="cuda:{}".format(torch.cuda.current_device()))
+                           map_location=opt.device)
     reals_shapes = [r.shape for r in reals]
 
     '''
@@ -98,6 +97,7 @@ def main(opt):
                              scale_w=2, scale_h=2, n=opt.num_samples)
     '''
     if opt.train_mode == "harmonization" or opt.train_mode == "editing":
+        opt.not_cuda = True
         opt.noise_scaling = 0.1
         _name = "harmonized" if opt.train_mode == "harmonization" else "edited"
         real = functions.read_image_dir(opt.naive_img, opt)
