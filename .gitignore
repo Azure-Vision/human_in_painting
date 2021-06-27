@@ -1,7 +1,6 @@
 .history/
 Con_Sin_GAN/TrainedModels/
 __pycache__/
-*tmp*
 Images/output/*
 *.sh
 .vscode/
